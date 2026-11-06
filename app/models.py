@@ -5,20 +5,27 @@ from datetime import datetime
 from app.exceptions import ValidationError
 
 
-class User:
-    """Пользователь приложения."""
+""" ------- BASE ------- """
 
-    _id_counter: int = 0  # последний выданный id
-    USERNAME_MIN_LENGTH = 3
-    USERNAME_MAX_LENGTH = 32
-    _USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
-    _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+class BaseEntity:
+    """Базовый класс сущности, которая хранится в БД и имеет id."""
 
-    def __init__(self, username: str, email: str) -> None:
-        self.__id = self._generate_id()  # «приватный»: хранится как _User__id
-        self._created_at = datetime.now()  # защищённый
-        self.username = username  # присваивание через сеттер с проверкой
-        self.email = email  # присваивание через сеттер с проверкой
+
+    _id_counter: int = 0
+
+    def __init__(self) -> None:
+        self.__id = self._generate_id()      # хранится как _BaseEntity__id
+        self._created_at = datetime.now()
+
+    @classmethod
+    def _generate_id(cls) -> int:
+        cls._id_counter += 1                 # у каждого наследника свой счётчик
+        return cls._id_counter
+
+    @classmethod
+    def reset_ids(cls) -> None:
+        """Сбросить счётчик id. Понадобится в тестах."""
+        cls._id_counter = 0
 
     @property
     def id(self) -> int:
@@ -27,6 +34,27 @@ class User:
     @property
     def created_at(self) -> datetime:
         return self._created_at
+
+    def to_dict(self) -> dict:
+        """Словарь с данными объекта. Пригодится для JSON и БД."""
+        return {"id": self.id, "created_at": self.created_at.isoformat()}
+
+
+""" ------- USER ------- """
+
+class User(BaseEntity):
+    """Пользователь приложения."""
+
+
+    USERNAME_MIN_LENGTH = 3
+    USERNAME_MAX_LENGTH = 32
+    _USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
+    _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+    def __init__(self, username: str, email: str) -> None:
+        super().__init__()  # id и created_at создаёт родитель
+        self.username = username  # присваивание через сеттер с проверкой
+        self.email = email  # присваивание через сеттер с проверкой
 
     @property
     def username(self) -> str:
@@ -59,15 +87,10 @@ class User:
             raise ValidationError("email: только строка вида имя@домен.зона без пробелов")
         self._email = value
 
-    @classmethod
-    def _generate_id(cls) -> int:
-        cls._id_counter += 1
-        return cls._id_counter
-
-    @classmethod
-    def reset_ids(cls) -> None:
-        """Сбросить счётчик id. Понадобится в тестах."""
-        cls._id_counter = 0
+    def to_dict(self) -> dict:
+        data = super().to_dict()  # расширяем метод родителя
+        data.update(username=self.username, email=self.email)
+        return data
 
     def info(self) -> str:
         return f"{self.username} <{self.email}>"
@@ -75,21 +98,16 @@ class User:
 
 """ ------- CURRENCY ------- """
 
-
-class Currency:
+class Currency(BaseEntity):
     """Валюта из справочника ЦБ РФ."""
 
-    _id_counter: int = 0
+
     CODE_LENGTH = 3
 
     def __init__(self, code: str, name: str) -> None:
-        self.__id = self._generate_id()
+        super().__init__()
         self.code = code  # через сеттер
         self.name = name  # через сеттер
-
-    @property
-    def id(self) -> int:
-        return self.__id
 
     @property
     def code(self):
@@ -119,15 +137,10 @@ class Currency:
             raise ValidationError("name: не должен быть пустым")
         self._name = value
 
-
-    @classmethod
-    def _generate_id(cls) -> int:
-        cls._id_counter += 1
-        return cls._id_counter
-
-    @classmethod
-    def reset_ids(cls) -> None:
-        cls._id_counter = 0
+    def to_dict(self) -> dict:
+        data = super().to_dict()  # расширяем метод родителя
+        data.update(code=self.code, name=self.name)
+        return data
 
     def info(self) -> str:
         return f"{self.code} — {self.name}"
