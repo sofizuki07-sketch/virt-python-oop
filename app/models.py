@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
+import functools
 
 from app.exceptions import ValidationError
 
@@ -159,10 +160,11 @@ class Currency(BaseEntity):
 
     CODE_LENGTH = 3
 
-    def __init__(self, code: str, name: str) -> None:
+    def __init__(self, code: str, name: str, num_code: str | None = None) -> None:
         super().__init__()
-        self.code = code  # через сеттер
-        self.name = name  # через сеттер
+        self.code = code
+        self.name = name
+        self.num_code = num_code
 
     @property
     def code(self):
@@ -192,9 +194,22 @@ class Currency(BaseEntity):
             raise ValidationError("name: не должен быть пустым")
         self._name = value
 
+    @property
+    def num_code(self) -> str | None:
+        return self._num_code
+
+    @num_code.setter
+    def num_code(self, value: str | None) -> None:
+        if value is None:
+            self._num_code = None
+            return
+        if not isinstance(value, str) or len(value.strip()) != 3 or not value.strip().isdigit():
+            raise ValidationError("num_code должен состоять из 3 цифр")
+        self._num_code = value.strip()
+
     def to_dict(self) -> dict:
-        data = super().to_dict()  # расширяем метод родителя
-        data.update(code=self.code, name=self.name)
+        data = super().to_dict()
+        data.update(code=self.code, name=self.name, num_code=self.num_code)
         return data
 
     def __str__(self) -> str:
@@ -245,11 +260,11 @@ class Subscription:
 
 """ ------- RATE ------- """
 
+@functools.total_ordering
 class Rate:
     """Курс валюты на дату. Не хранится в БД."""
 
-    def __init__(self, code: str, name: str, nominal: int,
-                 value: Decimal, on_date: date) -> None:
+    def __init__(self, code: str, name: str, nominal: int, value: Decimal, on_date: date, num_code: str | None = None) -> None:
         if nominal <= 0:
             raise ValidationError("Номинал должен быть положительным")
         if value <= 0:
@@ -259,6 +274,7 @@ class Rate:
         self.nominal = nominal
         self.value = Decimal(value)
         self.date = on_date
+        self.num_code = num_code
 
     @property
     def per_unit(self) -> Decimal:
@@ -270,6 +286,11 @@ class Rate:
             return NotImplemented
         return (self.code, self.nominal, self.value, self.date) == (
             other.code, other.nominal, other.value, other.date)
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Rate):
+            return NotImplemented
+        return self.per_unit < other.per_unit
 
     def __hash__(self) -> int:
         return hash((self.code, self.nominal, self.value, self.date))
