@@ -1,7 +1,9 @@
 import pytest
+from datetime import date
+from decimal import Decimal
 
 from app.exceptions import AppError, ValidationError
-from app.models import BaseEntity, Currency, Subscription, User
+from app.models import BaseEntity, Currency, Subscription, User, Rate
 
 
 def test_user_created_with_attributes():
@@ -99,3 +101,31 @@ def test_subscriptions_with_same_pair_are_equal():
 def test_subscription_requires_objects():
     with pytest.raises(TypeError):
         Subscription("anna", "USD")
+
+@pytest.mark.parametrize("bad_name", ["a", "a" * 101, "Иван 123", "John_Doe", None if False else ""])
+def test_invalid_full_name(bad_name):
+    with pytest.raises(ValidationError):
+        User("anna", "a@ex.ru", full_name=bad_name)
+
+def test_is_active_read_only_and_methods():
+    user = User("anna", "a@ex.ru")
+    assert user.is_active is True
+    user.deactivate()
+    assert user.is_active is False
+    user.activate()
+    assert user.is_active is True
+    with pytest.raises(AttributeError):
+        user.is_active = False
+
+def test_rate_sorting():
+    day = date(2026, 10, 27)
+    usd = Rate("USD", "Доллар", 1, Decimal("80.0"), day)
+    eur = Rate("EUR", "Евро", 1, Decimal("90.0"), day)
+    assert eur > usd
+    assert sorted([usd, eur]) == [usd, eur]
+
+def test_currency_num_code():
+    c = Currency("USD", "Доллар", num_code="840")
+    assert c.num_code == "840"
+    with pytest.raises(ValidationError):
+        Currency("USD", "Доллар", num_code="84A")

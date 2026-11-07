@@ -62,3 +62,22 @@ def test_any_provider_has_same_interface(make_provider, rates):
     assert provider.get_rate("usd").code == "USD"
     with pytest.raises(NotFoundError):
         provider.get_rate("XXX")
+
+def test_cbr_timeout(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise requests.Timeout("timeout")
+    monkeypatch.setattr(requests, "get", fake_get)
+    with pytest.raises(ProviderError) as exc_info:
+        CbrXmlProvider().get_rates()
+    assert "не ответил" in str(exc_info.value)
+
+def test_cbr_skipped_count():
+    bad_xml = SAMPLE_XML.replace(b"80,5000", b"bad_value")
+    provider = CbrXmlProvider()
+    rates = provider.parse(bad_xml)
+    assert provider.skipped_count == 1
+    assert "USD" not in rates # Доллар пропущен
+
+def test_cbr_num_code_parsed():
+    rates = CbrXmlProvider.parse(SAMPLE_XML)
+    assert rates["USD"].num_code == "840"
