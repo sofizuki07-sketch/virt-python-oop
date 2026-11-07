@@ -18,6 +18,7 @@ SAMPLE_XML = """<?xml version="1.0" encoding="windows-1251"?>
 def test_abstract_provider_cannot_be_created():
     with pytest.raises(TypeError):
         RateProvider()
+        
 
 
 def test_cbr_parse():
