@@ -21,7 +21,7 @@ def test_abstract_provider_cannot_be_created():
 
 
 def test_cbr_parse():
-    rates = CbrXmlProvider.parse(SAMPLE_XML)
+    rates = CbrXmlProvider().parse(SAMPLE_XML)
     assert set(rates) == {"USD", "JPY"}
     assert rates["USD"].name == "Доллар США"
     assert rates["JPY"].per_unit == Decimal("0.53")
@@ -29,7 +29,7 @@ def test_cbr_parse():
 
 def test_cbr_parse_broken_xml():
     with pytest.raises(ProviderError):
-        CbrXmlProvider.parse(b"<not xml")
+        CbrXmlProvider().parse(b"<not xml")
 
 
 def test_cbr_network_error(monkeypatch):
@@ -79,5 +79,5 @@ def test_cbr_skipped_count():
     assert "USD" not in rates # Доллар пропущен
 
 def test_cbr_num_code_parsed():
-    rates = CbrXmlProvider.parse(SAMPLE_XML)
+    rates = CbrXmlProvider().parse(SAMPLE_XML)
     assert rates["USD"].num_code == "840"

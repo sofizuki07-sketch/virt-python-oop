@@ -45,26 +45,15 @@ class CbrXmlProvider(RateProvider):
     def skipped_count(self) -> int:
         return self._skipped_count
 
-    def get_rates(self) -> dict[str, Rate]:
-        try:
-            response = requests.get(self._url, headers=self.HEADERS, timeout=self._timeout)
-            response.raise_for_status()
-        except requests.Timeout as exc:  #
-            raise ProviderError(f"Сервер ЦБ РФ не ответил за {self._timeout} секунд") from exc
-        except requests.RequestException as exc:
-            raise ProviderError(f"Не удалось получить данные ЦБ РФ: {exc}") from exc
-        return self.parse(response.content)
-
-
     def parse(self, xml_data: bytes) -> dict[str, Rate]:
         """Разобрать XML ЦБ РФ. Кодировку windows-1251 парсер определит сам."""
+        self._skipped_count = 0
         try:
             root = ET.fromstring(xml_data)
             on_date = datetime.strptime(root.attrib["Date"], "%d.%m.%Y").date()
         except (ET.ParseError, KeyError, ValueError) as exc:
             raise ProviderError(f"Некорректный ответ ЦБ РФ: {exc}") from exc
 
-        self._skipped_count = 0
         rates: dict[str, Rate] = {}
         for valute in root.findall("Valute"):
             try:
@@ -76,12 +65,20 @@ class CbrXmlProvider(RateProvider):
 
                 rates[code] = Rate(code, name, nominal, value, on_date, num_code=num_code)
 
-
             except (ValueError, InvalidOperation):
                 self._skipped_count += 1
                 continue  # пропускаем повреждённую запись
         return rates
 
+    def get_rates(self) -> dict[str, Rate]:
+        try:
+            response = requests.get(self._url, headers=self.HEADERS, timeout=self._timeout)
+            response.raise_for_status()
+        except requests.Timeout as exc:
+            raise ProviderError(f"Сервер ЦБ РФ не ответил за {self._timeout} секунд") from exc
+        except requests.RequestException as exc:
+            raise ProviderError(f"Не удалось получить данные ЦБ РФ: {exc}") from exc
+        return self.parse(response.content)
 
 class StaticRateProvider(RateProvider):
     """Курсы из заранее заданного списка."""
