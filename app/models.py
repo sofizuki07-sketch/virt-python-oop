@@ -63,11 +63,14 @@ class User(BaseEntity):
     USERNAME_MAX_LENGTH = 32
     _USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
     _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    _FULL_NAME_PATTERN = re.compile(r"^[A-Za-zА-Яа-яЁё\s\-]{2,100}$")
 
-    def __init__(self, username: str, email: str) -> None:
+    def __init__(self, username: str, email: str, full_name: str | None = None) -> None:
         super().__init__()  # id и created_at создаёт родитель
         self.username = username  # присваивание через сеттер с проверкой
         self.email = email  # присваивание через сеттер с проверкой
+        self.full_name = full_name  # Вызовет сеттер
+        self._is_active = True  # Защищенный атрибут
 
     @property
     def username(self) -> str:
@@ -99,6 +102,42 @@ class User(BaseEntity):
         if not self._EMAIL_PATTERN.match(value):
             raise ValidationError("email: только строка вида имя@домен.зона без пробелов")
         self._email = value
+
+    @property
+    def full_name(self) -> str | None:
+        return self._full_name
+
+    @full_name.setter
+    def full_name(self, value: str | None) -> None:
+        if value is None:
+            self._full_name = None
+            return
+        if not isinstance(value, str):
+            raise ValidationError("full_name должен быть строкой или None")
+        value = value.strip()
+        if not self._FULL_NAME_PATTERN.match(value):
+            raise ValidationError("full_name: от 2 до 100 символов, только буквы, пробелы и дефис")
+        self._full_name = value
+
+    @property
+    def is_active(self) -> bool:
+        return self._is_active
+
+    def deactivate(self) -> None:
+        self._is_active = False
+
+    def activate(self) -> None:
+        self._is_active = True
+
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update(
+            username=self.username,
+            email=self.email,
+            full_name=self.full_name,
+            is_active=self.is_active
+        )
+        return data
 
     def to_dict(self) -> dict:
         data = super().to_dict()  # расширяем метод родителя
