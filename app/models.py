@@ -136,7 +136,7 @@ class Currency(BaseEntity):
         value = value.strip().upper()
         if len(value) != self.CODE_LENGTH:
             raise ValidationError("code: только 3 символа")
-        if not value.isascii() and value.isalpha():
+        if not (value.isascii() and value.isalpha()):
             raise ValidationError("code: только латинские буквы")
         self._code = value
 
