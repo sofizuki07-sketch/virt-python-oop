@@ -44,7 +44,7 @@ class CurrencyTracker:
             if code in self._currencies:
                 self._currencies[code].name = rate.name
             else:
-                self._currencies[code] = Currency(code, rate.name)
+                self._currencies[code] = Currency(code, rate.name, num_code=rate.num_code)
                 added += 1
         return added
 
